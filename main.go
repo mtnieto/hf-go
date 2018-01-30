@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/hyperledger/fabric-sdk-go/api/apitxn"
-	"github.com/hyperledger/fabric-sdk-go/test/integration"
 	"github.com/hyperledger/fabric-sdk-go/third_party/github.com/hyperledger/fabric/common/cauthdsl"
 
 	resmgmt "github.com/hyperledger/fabric-sdk-go/api/apitxn/resmgmtclient"
@@ -24,48 +23,43 @@ const ExampleCCInitB = "200"
 
 var initArgs = [][]byte{[]byte("init"), []byte("a"), []byte("100"), []byte("b"), []byte(ExampleCCInitB)}
 
-//ExampleCCInitArgs returns example cc initialization args
-func ExampleCCInitArgs() [][]byte {
-	return initArgs
-}
-
 func main() {
 
-	// Create SDK setup for the integration tests
+	// Creación del SDK
 	sdk, err := fabsdk.New(config.FromFile("config.yaml"))
 	if err != nil {
 		fmt.Print("Failed to create new SDK: %s", err)
 	}
 	fmt.Println("Creado el SDK")
 
-	// Org1 resource management client (Org1 is default org)
+	// Creación del usuario para interactuar.
 	org1ResMgmt, err := sdk.NewClient(fabsdk.WithUser("Admin")).ResourceMgmt()
 	if err != nil {
 		fmt.Print("Failed to create new resource management client: %s", err)
 	}
 	fmt.Println("Creado el cliente")
 
-	// Create chaincode package for example cc
+	// Crear el package para el chaincode
 	ccPkg, err := packager.NewCCPackage("chaincode_example02", "chaincodes/")
 	if err != nil {
 		fmt.Print(err)
 	}
-	fmt.Println("Llega aqui")
+	fmt.Println("Creado el paquete")
 
-	installCCReq := resmgmt.InstallCCRequest{Name: "mycontract", Path: "chaincode_example02", Version: "1", Package: ccPkg}
+	installCCReq := resmgmt.InstallCCRequest{Name: "mycc", Path: "chaincode_example02", Version: "1", Package: ccPkg}
 	fmt.Println("Creada request")
 	// Install example cc to Org1 peers
 	_, err = org1ResMgmt.InstallCC(installCCReq)
 	if err != nil {
 		fmt.Println("Error al instalar", err)
 	}
-	fmt.Println("Instalado")
+	fmt.Println("Instalado chaincode en peer")
 
 	// Set up chaincode policy to 'any of two msps'
 	ccPolicy := cauthdsl.SignedByAnyMember([]string{"hboMSP", "netflixMSP"})
 
-	instantciateCReq := resmgmt.InstantiateCCRequest{Name: "mycontract", Path: "chaincode_example02", Version: "1", Args: integration.ExampleCCInitArgs(), Policy: ccPolicy}
-	// Org1 resource manager will instantiate 'example_cc' on 'orgchannel'
+	instantciateCReq := resmgmt.InstantiateCCRequest{Name: "mycc", Path: "chaincode_example02", Version: "1", Args: initArgs, Policy: ccPolicy}
+	// Instanciación del chaincode
 	err = org1ResMgmt.InstantiateCC("serieschannel", instantciateCReq)
 	if err != nil {
 		fmt.Println(err)
@@ -73,14 +67,14 @@ func main() {
 
 	fmt.Println("Instanciado")
 
-	//Org1 user queries initial value on both peers
+	//Query del valor B
 
 	chClientOrg1User, err := sdk.NewClient(fabsdk.WithUser("Admin"), fabsdk.WithOrg("netflix")).Channel("serieschannel")
 	if err != nil {
 		fmt.Println("Failed to create new channel client for Org1 user: %s", err)
 	}
 	queryArgs := [][]byte{[]byte("b")}
-	initialValue, err := chClientOrg1User.Query(apitxn.Request{ChaincodeID: "mycontract", Fcn: "query", Args: queryArgs})
+	initialValue, err := chClientOrg1User.Query(apitxn.Request{ChaincodeID: "mycc", Fcn: "query", Args: queryArgs})
 	if err != nil {
 		fmt.Println("Failed to query funds: %s", err)
 	}
@@ -88,17 +82,37 @@ func main() {
 
 	// //invoke
 	invokeArgs := [][]byte{[]byte("b"), []byte("a"), []byte("1")}
-	//no entiendo que es esto :D
 
-	// Move funds
-	_, _, err = chClientOrg1User.Execute(apitxn.Request{ChaincodeID: "mycontract", Fcn: "invoke", Args: invokeArgs})
+	// Invoke chaincode
+	_, _, err = chClientOrg1User.Execute(apitxn.Request{ChaincodeID: "mycc", Fcn: "invoke", Args: invokeArgs})
 	if err != nil {
 		fmt.Print("Failed to move funds: %s", err)
 	}
-
-	value, err := chClientOrg1User.Query(apitxn.Request{ChaincodeID: "mycontract", Fcn: "query", Args: queryArgs})
+	//QUERY de comprobación de invoke OK
+	value, err := chClientOrg1User.Query(apitxn.Request{ChaincodeID: "mycc", Fcn: "query", Args: queryArgs})
 	if err != nil {
 		fmt.Println("Failed to query funds: %s", err)
 	}
 	fmt.Println("B value: ", string(value))
+
+	//Upgradeando el contrato
+	installCCReq2 := resmgmt.InstallCCRequest{Name: "mycc", Path: "chaincode_example02", Version: "2", Package: ccPkg}
+	fmt.Println("Creada request")
+	// Install example cc to Org1 peers
+	_, err = org1ResMgmt.InstallCC(installCCReq2)
+	if err != nil {
+		fmt.Println("Error al instalar", err)
+	}
+	fmt.Println("Instalado")
+
+	// Set up chaincode policy to 'any of two msps'
+
+	upgradeRq := resmgmt.UpgradeCCRequest{Name: "mycc", Path: "chaincode_example2", Version: "2", Args: initArgs, Policy: ccPolicy}
+
+	// Org1 resource manager will instantiate 'example_cc' version 1 on 'orgchannel'
+	err = org1ResMgmt.UpgradeCC("serieschannel", upgradeRq)
+	if err != nil {
+		fmt.Println(err)
+	}
+
 }
