@@ -36,6 +36,9 @@ func (t *ManagementChaincode) Invoke(stub shim.ChaincodeStubInterface) pb.Respon
 	if function == "registrar" {
 		return t.registrar(stub, args)
 	}
+	if function == "getAlias" {
+		return t.getAlias(stub, args)
+	}
 	return shim.Success([]byte("Invoke"))
 }
 func (t *ManagementChaincode) registrar(stub shim.ChaincodeStubInterface, args []string) pb.Response {
@@ -53,18 +56,36 @@ func (t *ManagementChaincode) registrar(stub shim.ChaincodeStubInterface, args [
 	alias := args[0]
 	logger.Critical("[Management Chaincode][StoreCode]Storing cert, alias", args[0])
 	err = stub.PutState(string(caller[:]), []byte(alias))
+	logger.Critical("[Management Chaincode][StoreCode]Caller", string(caller[:]))
 	if err != nil {
 		logger.Error("[Management Chaincode][addTarget]Problem adding new target..", err)
 		return shim.Error(err.Error())
 	}
 	logger.Critical("[Management Chaincode][StoreCode]Stored successful", args[0])
+
+	return shim.Success([]byte(caller))
+}
+
+func (t *ManagementChaincode) getAlias(stub shim.ChaincodeStubInterface, args []string) pb.Response {
+
+	logger.Critical("[Management Chaincode][Registrar]Calling registrar...")
+	//Get the transaction ID
+	txID := stub.GetTxID()
+	logger.Debug("[Management Chaincode][StoreCode]Transaction ID", txID)
+	// Get certs from transaction sender
+	caller, err := stub.GetCreator()
+	if err != nil {
+		return shim.Error(err.Error())
+	}
+
+	logger.Critical("[Management Chaincode][StoreCode]Getting alias from caller---", string(caller[:]))
 	state, err := stub.GetState(string(caller[:]))
 	if err != nil {
 		logger.Error("[Management Chaincode][addTarget]Problem adding new target..", err)
 		return shim.Error(err.Error())
 	}
 	logger.Critical("[Management Chaincode][StoreCode]State", string(state[:]))
-	return shim.Success([]byte(caller))
+	return shim.Success([]byte(""))
 }
 
 func (t *ManagementChaincode) storeCode(stub shim.ChaincodeStubInterface, args []string) pb.Response {
