@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"math/rand"
 
 	"github.com/hyperledger/fabric/core/chaincode/shim"
 	pb "github.com/hyperledger/fabric/protos/peer"
@@ -11,11 +12,35 @@ var logger = shim.NewLogger("Management Chaincode")
 
 // SimpleChaincode representing a class of chaincode
 type ManagementChaincode struct{}
+
+// type Target struct{
+// 	Alias string `json: Alias`
+// }
 type Code struct {
-	Name    string `json:"Name"`
-	Version string `json:"Version"`
-	Source  string `json:"Source"`
-	Target  string
+	Name   string   `json:"Name"`
+	Source string   `json:"Source"`
+	Target []string `json: Target`
+}
+
+type Index struct {
+	Id   string
+	Name string
+}
+
+type CodeInfo struct {
+	Id       string
+	Name     string
+	Source   string
+	Target   map[string]bool
+	Approved int  // autoincrement with the  approvement of a party
+	Verified bool // If approved == map.length -> TRUE
+
+}
+type CodeStore struct {
+	Source   string
+	Target   map[string]bool
+	Approved int  // autoincrement with the  approvement of a party
+	Verified bool // If approved == map.length -> TRUE
 }
 
 var targetList []string
@@ -94,28 +119,40 @@ func (t *ManagementChaincode) storeCode(stub shim.ChaincodeStubInterface, args [
 	//Get the transaction ID
 	txID := stub.GetTxID()
 	logger.Critical("[Management Chaincode][StoreCode]Transaction ID", txID)
-	caller, err := stub.GetCreator()
 
+	rawIn := json.RawMessage(args[0])
+	bytes, err := rawIn.MarshalJSON()
+	if err != nil {
+		return shim.Error(err.Error())
+	}
+	var request Code
+	err = json.Unmarshal(bytes, &request)
+
+	//Value to store
+	store := CodeStore{}
+	store.Source = request.Source
+	store.Approved = 0
+	store.Verified = false
+	i := 0
+	for i < len(request.Target) {
+		store.Target[request.Target[i]] = false
+		i++
+	}
+
+	//Index
+	id := RandStringBytes()
+	index := []string{request.Name}
+	key, err := stub.CreateCompositeKey(id, index)
+	if err != nil {
+		return shim.Error(err.Error())
+	}
+	data, err := json.Marshal(store)
 	if err != nil {
 		return shim.Error(err.Error())
 	}
 
-	// rawIn := json.RawMessage(args[1])
-	// bytes, err := rawIn.MarshalJSON()
-	// if err != nil {
-	// 	panic(err)
-	// }
-	// var something Code
-	// err = json.Unmarshal(bytes, &something)
-	// callerStr := string(caller[:])
-	// chaincodeName := args[0]
-	// something.Target = callerStr
-	// logger.Critical("The caller", callerStr)
-	// var data []byte
-
-	// data = []byte(args[1])
-	// stub.PutState(chaincodeName, data)
-	return shim.Success([]byte(caller))
+	stub.PutState(key, data)
+	return shim.Success([]byte("Object stored"))
 }
 func addTarget(stub shim.ChaincodeStubInterface, newTarget string) bool {
 	state, err := stub.GetState("targetList")
@@ -136,9 +173,38 @@ func addTarget(stub shim.ChaincodeStubInterface, newTarget string) bool {
 
 	return true
 }
+
+func addToListCC(stub shim.ChaincodeStubInterface, newCode string) bool {
+	state, err := stub.GetState("codeList")
+	if err != nil {
+		logger.Error("[Management Chaincode][addToListCC]Problem adding new Code..", err)
+		return false
+	}
+	json.Unmarshal(state, &targetList)
+	slice := append(targetList, newCode)
+	logger.Critical("[Management Chaincode][addToListCC] Actual state of the slice ..", slice)
+	toStore, err := json.Marshal(slice)
+	if err != nil {
+		return false
+	}
+	logger.Critical("[Management Chaincode][addToListCC] Updating the state...")
+	stub.PutState("targetList", toStore)
+	logger.Critical("[Management Chaincode][addToListCC] Updated the state")
+
+	return true
+}
 func main() {
 	err := shim.Start(new(ManagementChaincode))
 	if err != nil {
 		logger.Debugf("Error: %s", err)
 	}
+}
+
+func RandStringBytes() string {
+	letterBytes := "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+	b := make([]byte, 100)
+	for i := range b {
+		b[i] = letterBytes[rand.Intn(len(letterBytes))]
+	}
+	return string(b)
 }
