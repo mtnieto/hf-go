@@ -9,6 +9,7 @@ cd $GOPATH/src/github.com/hyperledger/fabric-sdk-go && \
 git checkout 614551a752802488988921a730b172dada7def1d
 ```
 
+El SDK es compatible con la versión 1.1 de la red.
 ## Configuración ##
 
 Hay que añadir los paths de los certificados y las urls donde se encuentran el nodo sobre el cual se quiera operar.
