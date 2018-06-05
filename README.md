@@ -1,5 +1,13 @@
 # Proof of concept - Hyperledger Fabric Go SDK
 
+## Requisitos ##
+Usar el SDK de fabric para Go en una versión concreta, los cambios entre commits son muy diferentes y puede que el cliente deje de funcionar.
+
+```
+go get -u github.com/hyperledger/fabric-sdk-go && \
+cd $GOPATH/src/github.com/hyperledger/fabric-sdk-go && \
+git checkout 614551a752802488988921a730b172dada7def1d
+```
 
 ## Configuración ##
 

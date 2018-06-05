@@ -95,51 +95,11 @@ client:
   #     certfile: ${GOPATH}/src/github.com/hyperledger/fabric-sdk-go/test/fixtures/config/mutual_tls/client_sdk_go.pem
 
 channels:
-  # name of the channel
-  serieschannel:
-    # Required. list of orderers designated by the application to use for transactions on this
-    # channel. This list can be a result of access control ("org1" can only access "ordererA"), or
-    # operational decisions to share loads from applications among the orderers.  The values must
-    # be "names" of orgs defined under "organizations/peers"
-    orderers:
-      - orderer.myapp.com
-
-    # Required. list of peers from participating orgs
-    peers:
-      peer0.netflix.myapp.com:
-        # [Optional]. will this peer be sent transaction proposals for endorsement? The peer must
-        # have the chaincode installed. The app can also use this property to decide which peers
-        # to send the chaincode install request. Default: true
-        endorsingPeer: true
-
-        # [Optional]. will this peer be sent query proposals? The peer must have the chaincode
-        # installed. The app can also use this property to decide which peers to send the
-        # chaincode install request. Default: true
-        chaincodeQuery: true
-
-        # [Optional]. will this peer be sent query proposals that do not require chaincodes, like
-        # queryBlock(), queryTransaction(), etc. Default: true
-        ledgerQuery: true
-
-        # [Optional]. will this peer be the target of the SDK's listener registration? All peers can
-        # produce events but the app typically only needs to connect to one to listen to events.
-        # Default: true
-        eventSource: true
-
-    # [Optional]. what chaincodes are expected to exist on this channel? The application can use
-    # this information to validate that the target peers are in the expected state by comparing
-    # this list with the query results of getInstalledChaincodes() and getInstantiatedChaincodes()
-    chaincodes:
-      # the format follows the "canonical name" of chaincodes by fabric code
-      - example02:v1
-      - marbles:1.0
-
   # multi-org test channel
-  orgchannel:
+  serieschannel:
 
     orderers:
       - orderer.myapp.com
-
     peers:
       peer0.netflix.myapp.com:
         endorsingPeer: true
@@ -147,16 +107,23 @@ channels:
         ledgerQuery: true
         eventSource: true
 
-      peer0.hbo.myapp.com:
-        endorsingPeer: true
-        chaincodeQuery: true
-        ledgerQuery: true
-        eventSource: true
+      # peer0.hbo.myapp.com:
+      #   endorsingPeer: true
+      #   chaincodeQuery: true
+      #   ledgerQuery: true
+      #   eventSource: true
 
 #
 # list of participating organizations in this network
 #
 organizations:
+  # Orderer Org name
+  OrdererOrg:
+      # Membership Service Provider ID for this organization
+      mspID: "OrdererMSP"
+
+      # Needed to load users crypto keys and certs for this org (absolute path or relative to global crypto path, DEV mode)
+      cryptoPath: ordererOrganizations/myapp.com/users/Admin@myapp.com/msp
   netflix:
     mspid: netflixMSP
 
@@ -203,13 +170,7 @@ organizations:
     certificateAuthorities:
       - ca.hbo.myapp.com
 
-  # Orderer Org name
-  ordererorg:
-      # Membership Service Provider ID for this organization
-      mspID: "OrdererOrg"
-
-      # Needed to load users crypto keys and certs for this org (absolute path or relative to global crypto path, DEV mode)
-      cryptoPath: ordererOrganizations/myapp.com/users/Admin@myapp.com/msp
+  
 
 
 #
@@ -219,7 +180,7 @@ organizations:
 #
 orderers:
   orderer.myapp.com:
-    url: grpcs://127.0.0.1:7050
+    url: grpcs://172.16.239.10:7050
 
     # these are standard properties defined by the gRPC library
     # they will be passed in as-is to gRPC client constructor
@@ -251,13 +212,13 @@ peers:
       # Certificate location absolute path
       path: ${GOPATH}/hf-2orgs/crypto-config/peerOrganizations/netflix.myapp.com/tlsca/tlsca.netflix.myapp.com-cert.pem
 
-  # peer0.hbo.myapp.com:
-  #   url: grpcs://127.0.0.1:8051
-  #   eventUrl: grpcs://127.0.0.1:8053
-  #   grpcOptions:
-  #     ssl-target-name-override: peer0.hbo.myapp.com
-  #   tlsCACerts:
-  #     path: ${GOPATH}/hf-2orgs/crypto-config/peerOrganizations/hbo.myapp.com/tlsca/tlsca.hbo.myapp.com-cert.pem
+  peer0.hbo.myapp.com:
+    url: grpcs://127.0.0.1:8051
+    eventUrl: grpcs://127.0.0.1:8053
+    grpcOptions:
+      ssl-target-name-override: peer0.hbo.myapp.com
+    tlsCACerts:
+      path: ${GOPATH}/hf-2orgs/crypto-config/peerOrganizations/hbo.myapp.com/tlsca/tlsca.hbo.myapp.com-cert.pem
 
 #
 # Fabric-CA is a special kind of Certificate Authority provided by Hyperledger Fabric which allows
